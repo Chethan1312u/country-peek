@@ -1,89 +1,67 @@
-import { useState, useEffect } from 'react'
-
+import { useState } from 'react'
 import SearchBar from '../components/SearchBar'
 import CountryCard from '../components/CountryCard'
+import FilterBar from '../components/FilterBar'
+import useCountries from '../hooks/useCountries'
 
 function Home() {
-  const [query, setQuery] = useState('')
-  const [countries, setCountries] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const {
+    countries,
+    loading,
+    error,
+    searchCountries,
+  } = useCountries()
 
-  useEffect(() => {
-    if (!query.trim()) {
-      setCountries([])
-      setError(null)
-      return
-    }
+  const [region, setRegion] = useState('All')
+  const [sortBy, setSortBy] = useState('')
 
-    const timer = setTimeout(async () => {
-      try {
-        setLoading(true)
-        setError(null)
-
-        const res = await fetch(
-          `https://restcountries.com/v3.1/name/${query}`
+  const displayed = [...countries]
+    .filter(
+      (country) =>
+        region === 'All' || country.region === region
+    )
+    .sort((a, b) => {
+      if (sortBy === 'name') {
+        return a.name.common.localeCompare(
+          b.name.common
         )
-
-        if (!res.ok) {
-          throw new Error('No countries found.')
-        }
-
-        const data = await res.json()
-
-        setCountries(data)
-      } catch (err) {
-        setCountries([])
-        setError(err.message)
-      } finally {
-        setLoading(false)
       }
-    }, 400)
 
-    return () => clearTimeout(timer)
-  }, [query])
+      if (sortBy === 'population') {
+        return b.population - a.population
+      }
+
+      return 0
+    })
 
   return (
-    <div className="home">
-      <SearchBar
-        query={query}
-        onQueryChange={setQuery}
+    <main className="home">
+      <SearchBar onSearch={searchCountries} />
+
+      <FilterBar
+        region={region}
+        onRegionChange={setRegion}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
       />
 
-      {loading && (
-        <p className="home__status">
-          Loading...
-        </p>
+      {loading && <p>Loading...</p>}
+
+      {error && <p>{error}</p>}
+
+      {!loading && countries.length === 0 && (
+        <p>Search for a country to begin.</p>
       )}
 
-      {error && (
-        <p className="home__status home__status--error">
-          {error}
-        </p>
-      )}
-
-      {!loading &&
-        !error &&
-        countries.length > 0 && (
-          <div className="cards-grid">
-            {countries.map((country) => (
-              <CountryCard
-                key={country.cca3}
-                country={country}
-              />
-            ))}
-          </div>
-        )}
-
-      {!loading &&
-        !error &&
-        countries.length === 0 &&
-        !query && (
-          <p className="home__status">
-            Start searching to explore countries.
-          </p>
-        )}
-    </div>
+      <section className="cards-grid">
+        {displayed.map((country) => (
+          <CountryCard
+            key={country.cca3}
+            country={country}
+          />
+        ))}
+      </section>
+    </main>
   )
 }
 
